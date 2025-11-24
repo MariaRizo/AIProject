@@ -3,94 +3,119 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Tark Veebiabiline</title>
+    <title>Tehisintellekt.ee Abiline</title>
     <style>
-        body { font-family: sans-serif; background: #f0f2f5; display: flex; justify-content: center; height: 100vh; margin: 0; }
-        .container { width: 900px; background: white; margin: 20px; display: flex; flex-direction: column; box-shadow: 0 4px 10px rgba(0,0,0,0.1); border-radius: 8px; overflow: hidden; }
+        body { font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; background: #f0f2f5; display: flex; justify-content: center; height: 100vh; margin: 0; }
+        .container { width: 100%; max-width: 900px; background: white; margin: 20px; display: flex; flex-direction: column; box-shadow: 0 4px 10px rgba(0,0,0,0.1); border-radius: 10px; overflow: hidden; }
 
-        .header { background: #333; color: white; padding: 15px; display: flex; align-items: center; justify-content: space-between; }
-        .info-panel { font-size: 0.85em; color: #bbb; text-align: right; }
+        /* Päis */
+        .header { background: #2c3e50; color: white; padding: 20px; display: flex; align-items: center; justify-content: space-between; }
+        .title { font-size: 1.2em; font-weight: bold; }
+        .db-info { font-size: 0.8em; color: #bdc3c7; text-align: right; }
 
-        .settings { padding: 15px; background: #e9e9e9; border-bottom: 1px solid #ccc; display: flex; gap: 10px; }
-        input { flex: 1; padding: 8px; border: 1px solid #ccc; border-radius: 4px; }
-        button { padding: 8px 15px; border: none; border-radius: 4px; cursor: pointer; font-weight: bold; }
+        /* Seaded (Nüüd lihtsam) */
+        .settings { padding: 15px; background: #ecf0f1; border-bottom: 1px solid #bdc3c7; display: flex; align-items: center; justify-content: space-between; }
+        .target-url { font-weight: bold; color: #333; display: flex; align-items: center; gap: 10px; }
+        .target-url a { color: #2980b9; text-decoration: none; }
+        .target-url a:hover { text-decoration: underline; }
+
+        button { padding: 10px 20px; border: none; border-radius: 5px; cursor: pointer; font-weight: bold; transition: 0.2s; }
         .btn-update { background: #e67e22; color: white; }
         .btn-update:hover { background: #d35400; }
+        .btn-send { background: #27ae60; color: white; }
+        .btn-send:hover { background: #219150; }
 
-        .chat-area { flex: 1; padding: 20px; overflow-y: auto; background: white; display: flex; flex-direction: column; gap: 10px; }
-        .msg { padding: 10px 15px; border-radius: 15px; max-width: 75%; line-height: 1.4; }
-        .msg.user { background: #0084ff; color: white; align-self: flex-end; border-bottom-right-radius: 2px; }
-        .msg.ai { background: #f1f0f0; color: black; align-self: flex-start; border-bottom-left-radius: 2px; }
-        .msg.system { align-self: center; color: #888; font-size: 0.8em; font-style: italic; }
+        /* Chat ala */
+        .chat-area { flex: 1; padding: 20px; overflow-y: auto; background: white; display: flex; flex-direction: column; gap: 12px; }
+        .msg { padding: 12px 18px; border-radius: 18px; max-width: 80%; line-height: 1.5; font-size: 0.95em; }
+        .msg.user { background: #3498db; color: white; align-self: flex-end; border-bottom-right-radius: 2px; }
+        .msg.ai { background: #f1f0f0; color: #2c3e50; align-self: flex-start; border-bottom-left-radius: 2px; box-shadow: 0 1px 2px rgba(0,0,0,0.1); }
+        .msg.system { align-self: center; color: #7f8c8d; font-size: 0.85em; font-style: italic; background: #f9f9f9; padding: 5px 15px; border-radius: 20px; }
 
-        .input-area { padding: 15px; border-top: 1px solid #eee; display: flex; gap: 10px; }
-        .btn-send { background: #2ecc71; color: white; }
+        /* Sisestus */
+        .input-area { padding: 20px; border-top: 1px solid #eee; display: flex; gap: 10px; background: #fff; }
+        input[type="text"] { flex: 1; padding: 12px; border: 1px solid #ccc; border-radius: 5px; font-size: 1em; outline: none; }
+        input[type="text"]:focus { border-color: #3498db; }
     </style>
 </head>
 <body>
 
 <div class="container">
     <div class="header">
-        <div>AI Teadmusbaas</div>
-        <div class="info-panel" id="dbInfo">
-            Laen infot...
-        </div>
+        <div class="title">🤖 AI Veebiabiline</div>
+        <div class="db-info" id="dbInfo">Kontrollin seisu...</div>
     </div>
 
     <div class="settings">
-        <input type="text" id="urlInput" placeholder="" value="https://tehisintellekt.ee/">
-        <button class="btn-update" onclick="updateKnowledge()">Uuenda Teadmisi (Võtab aega!)</button>
+        <div class="target-url">
+            <span>Allikas:</span>
+            <!-- See on nüüd fikseeritud link -->
+            <a href="https://tehisintellekt.ee/" target="_blank">https://tehisintellekt.ee/</a>
+        </div>
+        <button class="btn-update" id="updateBtn" onclick="updateKnowledge()">🔄 Uuenda infot</button>
     </div>
 
     <div class="chat-area" id="chat">
-        <div class="msg ai">Tere! Olen valmis vastama küsimustele salvestatud veebilehe kohta.</div>
+        <div class="msg ai">Tere! Olen lugenud läbi <b>tehisintellekt.ee</b> veebilehe. Küsi mult midagi selle kohta!</div>
     </div>
 
     <div class="input-area">
-        <input type="text" id="question" placeholder="Küsi midagi..." onkeypress="if(event.key==='Enter') sendQuestion()">
+        <input type="text" id="question" placeholder="Nt: Milliseid koolitusi pakutakse?" onkeypress="if(event.key==='Enter') sendQuestion()">
         <button class="btn-send" onclick="sendQuestion()">Saada</button>
     </div>
 </div>
 
 <script>
+    // --- KONFIGURATSIOON ---
+    const TARGET_URL = "https://tehisintellekt.ee/";
+    // -----------------------
+
     window.onload = checkStatus;
 
     async function checkStatus() {
-        const res = await fetch('/api/status');
-        const data = await res.json();
+        try {
+            const res = await fetch('/api/status');
+            const data = await res.json();
 
-        const infoDiv = document.getElementById('dbInfo');
-        if (data.has_data) {
-            infoDiv.innerHTML = `Allikas: ${data.url}<br>Viimati uuendatud: ${data.last_updated}`;
-            document.getElementById('urlInput').value = data.url;
-        } else {
-            infoDiv.innerHTML = "Andmebaas on tühi.<br>Palun sisesta URL ja uuenda.";
+            const infoDiv = document.getElementById('dbInfo');
+            if (data.has_data) {
+                infoDiv.innerHTML = `Andmed: ${data.url}<br>Uuendatud: ${data.last_updated}`;
+            } else {
+                infoDiv.innerHTML = "⚠️ Andmebaas on tühi.<br>Palun vajuta 'Uuenda infot'.";
+            }
+        } catch (e) {
+            console.error("Viga staatuse kontrollimisel", e);
         }
     }
 
     async function updateKnowledge() {
-        const url = document.getElementById('urlInput').value;
-        if(!url) return alert("URL puudub!");
+        const btn = document.getElementById('updateBtn');
+        btn.disabled = true;
+        btn.innerText = "⏳ Töötan...";
 
-        addSystemMessage("Alustan veebilehe analüüsi... See võib võtta 1-2 minutit.");
+        addSystemMessage("Alustan veebilehe analüüsi (tehisintellekt.ee)... See võtab aega.");
 
         try {
             const res = await fetch('/api/train', {
                 method: 'POST',
                 headers: {'Content-Type': 'application/json'},
-                body: JSON.stringify({url: url})
+                // Siin saadame nüüd alati selle fikseeritud URLi
+                body: JSON.stringify({url: TARGET_URL})
             });
             const data = await res.json();
 
             if(res.ok) {
-                addSystemMessage(`Valmis! Loeti läbi ${data.pages} lehte.`);
+                addSystemMessage(`✅ Valmis! Andmebaasis on nüüd ${data.total_in_db} lehte.`);
                 checkStatus();
             } else {
-                addSystemMessage("Viga: " + data.error);
+                addSystemMessage("❌ Viga: " + data.error);
             }
         } catch(e) {
-            addSystemMessage("Serveri viga uuendamisel.");
+            addSystemMessage("❌ Ühenduse viga.");
         }
+
+        btn.disabled = false;
+        btn.innerText = "🔄 Uuenda infot";
     }
 
     async function sendQuestion() {
@@ -100,25 +125,42 @@
 
         addMessage('user', txt);
         inp.value = '';
-        addMessage('ai', '...');
 
-        const res = await fetch('/api/chat', {
-            method: 'POST',
-            headers: {'Content-Type': 'application/json'},
-            body: JSON.stringify({question: txt})
-        });
-        const data = await res.json();
+        // Loome ajutise laadimise sõnumi
+        const loadingId = addMessage('ai', '...', true);
 
-        document.querySelector('.msg.ai:last-child').innerText = data.answer;
+        try {
+            const res = await fetch('/api/chat', {
+                method: 'POST',
+                headers: {'Content-Type': 'application/json'},
+                body: JSON.stringify({question: txt})
+            });
+            const data = await res.json();
+
+            // Asendame laadimise teate päris vastusega
+            const msgEl = document.getElementById(loadingId);
+            msgEl.innerText = data.answer;
+            msgEl.classList.remove('loading'); // Eemaldame loading stiili (kui on)
+
+        } catch (e) {
+             const msgEl = document.getElementById(loadingId);
+             msgEl.innerText = "Viga serveriga suhtlemisel.";
+        }
     }
 
-    function addMessage(role, text) {
+    function addMessage(role, text, isLoading=false) {
         const chat = document.getElementById('chat');
         const div = document.createElement('div');
         div.className = `msg ${role}`;
         div.innerText = text;
+
+        if (isLoading) {
+            div.id = "msg-" + Date.now();
+        }
+
         chat.appendChild(div);
         chat.scrollTop = chat.scrollHeight;
+        return div.id;
     }
 
     function addSystemMessage(text) {
