@@ -1,0 +1,23 @@
+<!DOCTYPE html>
+<html lang="et">
+<head>
+    <meta charset="UTF-8">
+    <title>AI Veebiabiline</title>
+    <link rel="stylesheet" type="text/css" href="{{ url_for('static', filename='style.css') }}">
+</head>
+<body>
+    <div class="container">
+        <h1>Küsi veebilehe kohta</h1>
+        <form action="/process" method="POST">
+
+            <label for="url">Veebilehe URL (jäta tühjaks, kui tahad sama lehte kasutada):</label>
+            <input type="text" id="url" name="url" value="https://tehisintellekt.ee/" placeholder="https://...">
+
+            <label for="question">Sinu küsimus:</label>
+            <input type="text" id="question" name="question" required placeholder="Nt: Mis see sait on?">
+
+            <input type="submit" value="Küsi AI-lt">
+        </form>
+    </div>
+</body>
+</html>

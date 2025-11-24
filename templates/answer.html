@@ -1,0 +1,24 @@
+<!DOCTYPE html>
+<html lang="et">
+<head>
+    <title>Vastus</title>
+    <!-- CSS failide jaoks peab Flaskis kasutama url_for -->
+    <link rel="stylesheet" type="text/css" href="{{ url_for('static', filename='style.css') }}">
+</head>
+<body>
+    <div class="container">
+        <h1>AI Vastus</h1>
+
+        <div class="answer">
+            <h2>Küsimus:</h2>
+            <p>{{ question }}</p>
+
+            <h2>Vastus:</h2>
+            <p style="white-space: pre-wrap;">{{ answer }}</p>
+        </div>
+
+        <br>
+        <a href="/">Küsi uus küsimus</a>
+    </div>
+</body>
+</html>
