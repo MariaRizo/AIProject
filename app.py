@@ -1,4 +1,6 @@
 import os
+import json
+import time
 import requests
 from bs4 import BeautifulSoup
 from openai import OpenAI
@@ -6,6 +8,7 @@ from flask import Flask, render_template, request, jsonify
 from urllib.parse import urljoin, urlparse
 
 app = Flask(__name__)
+DATA_FILE = "knowledge.json"
 
 try:
     with open("key.txt", "r", encoding="utf-8") as f:
@@ -15,60 +18,70 @@ except FileNotFoundError:
 
 client = OpenAI(api_key=API_KEY)
 
-GLOBAL_DATA = {
-    "full_text": ""
-}
 
-def is_internal_link(base_url, link_url):
-    base_netloc = urlparse(base_url).netloc
-    link_netloc = urlparse(link_url).netloc
-    return link_netloc == "" or link_netloc == base_netloc
+def load_data():
+    if os.path.exists(DATA_FILE):
+        try:
+            with open(DATA_FILE, 'r', encoding='utf-8') as f:
+                data = json.load(f)
+                if "pages" not in data:
+                    return {"pages": {}, "last_updated": None}
+                return data
+        except:
+            pass
+    return {"pages": {}, "last_updated": None}
 
 
-def crawl_website(start_url, max_pages=10):
+def save_incremental_data(new_pages_dict):
+    current_db = load_data()
+    current_db["pages"].update(new_pages_dict)
+    current_db["last_updated"] = time.time()
+
+    with open(DATA_FILE, 'w', encoding='utf-8') as f:
+        json.dump(current_db, f, ensure_ascii=False, indent=2)
+
+    return len(current_db["pages"])
+
+
+CURRENT_DB = load_data()
+
+
+def crawl_website(start_url, max_pages=50):
     visited_urls = set()
     urls_to_visit = [start_url]
-    combined_text = ""
-
-    headers = {'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64)'}
-
-    print(f"Alustan lugemist: {start_url}")
+    scraped_pages = {}
+    headers = {'User-Agent': 'Mozilla/5.0 (Compatible; AI-Scraper/1.0)'}
+    print(f"Alustan: {start_url}")
 
     while urls_to_visit and len(visited_urls) < max_pages:
         current_url = urls_to_visit.pop(0)
-
-        if current_url in visited_urls:
-            continue
+        if current_url in visited_urls: continue
 
         try:
-            response = requests.get(current_url, headers=headers, timeout=5)
-            if response.status_code != 200:
-                continue
+            resp = requests.get(current_url, headers=headers, timeout=5)
+            if resp.status_code != 200: continue
 
-            soup = BeautifulSoup(response.text, 'html.parser')
-
+            soup = BeautifulSoup(resp.text, 'html.parser')
             for junk in soup(["script", "style", "nav", "footer", "meta"]):
                 junk.decompose()
 
-            page_text = soup.get_text(" ", strip=True)
-            combined_text += f"\n\n--- INFO LEHELT: {current_url} ---\n{page_text}"
+            text = soup.get_text(" ", strip=True)
+
+            scraped_pages[current_url] = text
 
             visited_urls.add(current_url)
-            print(f"Loetud ({len(visited_urls)}/{max_pages}): {current_url}")
+            print(f"Loetud: {current_url}")
 
-            for a_tag in soup.find_all('a', href=True):
-                link = a_tag['href']
-                full_link = urljoin(start_url, link)
-
-                if is_internal_link(start_url,
-                                    full_link) and full_link not in visited_urls and full_link not in urls_to_visit:
-                    if not full_link.endswith(('.pdf', '.jpg', '.png')):
-                        urls_to_visit.append(full_link)
-
+            for a in soup.find_all('a', href=True):
+                full = urljoin(start_url, a['href'])
+                if urlparse(full).netloc == urlparse(start_url).netloc:
+                    if full not in visited_urls and full not in urls_to_visit:
+                        if not full.endswith(('.pdf', '.jpg', '.png')):
+                            urls_to_visit.append(full)
         except Exception as e:
-            print(f"Viga lehel {current_url}: {e}")
+            print(f"Viga {current_url}: {e}")
 
-    return combined_text[:12000], len(visited_urls)
+    return scraped_pages
 
 
 @app.route('/')
@@ -76,48 +89,66 @@ def index():
     return render_template('index.html')
 
 
-@app.route('/api/train', methods=['POST'])
-def train_ai():
-    data = request.json
-    url = data.get('url')
+@app.route('/api/status', methods=['GET'])
+def get_status():
+    global CURRENT_DB
+    CURRENT_DB = load_data()
 
-    if not url:
-        return jsonify({"error": "URL puudub"}), 400
-
-    text, page_count = crawl_website(url)
-    GLOBAL_DATA["full_text"] = text
+    count = len(CURRENT_DB["pages"])
+    updated = CURRENT_DB.get("last_updated")
+    time_str = time.strftime('%Y-%m-%d %H:%M', time.localtime(updated)) if updated else "Pole andmeid"
 
     return jsonify({
-        "message": "Õppimine lõpetatud!",
-        "pages_read": page_count,
-        "text_length": len(text)
+        "has_data": count > 0,
+        "last_updated": time_str,
+        "url": f"Kokku {count} unikaalset lehte"
+    })
+
+
+@app.route('/api/train', methods=['POST'])
+def train_ai():
+    global CURRENT_DB
+    url = request.json.get('url')
+    if not url: return jsonify({"error": "URL puudub"}), 400
+
+    new_pages_map = crawl_website(url)
+
+    total_count = save_incremental_data(new_pages_map)
+
+    CURRENT_DB = load_data()
+
+    return jsonify({
+        "message": "Uuendatud!",
+        "pages": len(new_pages_map),
+        "total_in_db": total_count
     })
 
 
 @app.route('/api/chat', methods=['POST'])
 def chat_ai():
-    data = request.json
-    user_question = data.get('question')
+    question = request.json.get('question')
 
-    context = GLOBAL_DATA["full_text"]
+    all_pages_text = ""
+    for url, text in CURRENT_DB["pages"].items():
+        all_pages_text += f"\n--- ALLIKAS: {url} ---\n{text}\n"
 
-    if not context:
-        return jsonify({"answer": "Ma ei tea veel midagi. Palun sisesta üleval URL ja vajuta 'Õpi veebilehte'."})
+    full_context = all_pages_text[:20000]
+
+    if not full_context:
+        return jsonify({"answer": "Andmebaas on tühi. Palun uuenda teadmisi."})
 
     try:
         response = client.chat.completions.create(
-            model="gpt-3.5-turbo",
+            model="gpt-3.5-turbo-16k",
             messages=[
                 {"role": "system",
-                 "content": "Oled veebilehe abiline. Vasta kasutaja küsimustele AINULT allpool antud konteksti põhjal. Kui infot pole, ütle viisakalt, et ei tea."},
-                {"role": "user", "content": f"KONTEKST:\n{context}\n\nKÜSIMUS: {user_question}"}
+                 "content": "Vasta AINULT antud konteksti põhjal. Nimeta allikas (URL), kust info leidsid, kui võimalik."},
+                {"role": "user", "content": f"KONTEKST:\n{full_context}\n\nKÜSIMUS: {question}"}
             ]
         )
-        answer = response.choices[0].message.content
-        return jsonify({"answer": answer})
-
+        return jsonify({"answer": response.choices[0].message.content})
     except Exception as e:
-        return jsonify({"answer": f"Viga AI ühenduses: {str(e)}"})
+        return jsonify({"answer": f"Viga: {e}"})
 
 
 if __name__ == '__main__':
