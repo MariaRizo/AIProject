@@ -2,22 +2,131 @@
 <html lang="et">
 <head>
     <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>AI Veebiabiline</title>
-    <link rel="stylesheet" type="text/css" href="{{ url_for('static', filename='style.css') }}">
+    <style>
+        body { font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; background-color: #f4f4f9; display: flex; justify-content: center; height: 100vh; margin: 0; }
+        .container { width: 100%; max-width: 800px; background: white; box-shadow: 0 0 20px rgba(0,0,0,0.1); display: flex; flex-direction: column; height: 90vh; margin-top: 20px; border-radius: 10px; overflow: hidden; }
+
+        .header { background-color: #2c3e50; padding: 20px; color: white; }
+        .input-group { display: flex; gap: 10px; margin-top: 10px; }
+        input[type="text"] { flex: 1; padding: 10px; border-radius: 5px; border: none; }
+        button { padding: 10px 20px; border-radius: 5px; border: none; cursor: pointer; font-weight: bold; transition: 0.3s; }
+        .btn-train { background-color: #27ae60; color: white; }
+        .btn-train:hover { background-color: #219150; }
+        .btn-send { background-color: #3498db; color: white; }
+        .btn-send:hover { background-color: #2980b9; }
+        .status { font-size: 0.8em; margin-top: 5px; color: #bdc3c7; }
+
+        .chat-box { flex: 1; padding: 20px; overflow-y: auto; background-color: #ecf0f1; display: flex; flex-direction: column; gap: 15px; }
+        .message { padding: 10px 15px; border-radius: 10px; max-width: 70%; line-height: 1.5; }
+        .user-msg { background-color: #3498db; color: white; align-self: flex-end; border-bottom-right-radius: 0; }
+        .ai-msg { background-color: white; color: #333; align-self: flex-start; border-bottom-left-radius: 0; box-shadow: 0 2px 5px rgba(0,0,0,0.05); }
+        .loading { font-style: italic; color: #7f8c8d; font-size: 0.9em; }
+
+        .footer { padding: 20px; background-color: white; border-top: 1px solid #ddd; }
+    </style>
 </head>
 <body>
-    <div class="container">
-        <h1>Küsi veebilehe kohta</h1>
-        <form action="/process" method="POST">
 
-            <label for="url">Veebilehe URL (jäta tühjaks, kui tahad sama lehte kasutada):</label>
-            <input type="text" id="url" name="url" value="https://tehisintellekt.ee/" placeholder="https://...">
-
-            <label for="question">Sinu küsimus:</label>
-            <input type="text" id="question" name="question" required placeholder="Nt: Mis see sait on?">
-
-            <input type="submit" value="Küsi AI-lt">
-        </form>
+<div class="container">
+    <div class="header">
+        <h2>Veebi Ämblik & AI</h2>
+        <div class="input-group">
+            <input type="text" id="urlInput" value="https://tehisintellekt.ee/">
+            <button class="btn-train" onclick="startTraining()">Õpi lehte</button>
+        </div>
+        <div class="status" id="statusText">Ootel...</div>
     </div>
+
+    <div class="chat-box" id="chatBox">
+        <div class="message ai-msg">Tere! Sisesta ülal URL, vajuta "Õpi lehte" ja siis küsi mult midagi selle kohta.</div>
+    </div>
+
+    <div class="footer">
+        <div class="input-group">
+            <input type="text" id="questionInput" placeholder="Kirjuta küsimus..." onkeypress="handleEnter(event)">
+            <button class="btn-send" onclick="sendMessage()">Saada</button>
+        </div>
+    </div>
+</div>
+
+<script>
+    let isTraining = false;
+
+    async function startTraining() {
+        const url = document.getElementById('urlInput').value;
+        const statusEl = document.getElementById('statusText');
+
+        if (!url) return alert("Palun sisesta URL!");
+
+        isTraining = true;
+        statusEl.innerText = "Ämblik töötab... (loen lehti, palun oota u 10-20 sek)";
+
+        try {
+            const response = await fetch('/api/train', {
+                method: 'POST',
+                headers: {'Content-Type': 'application/json'},
+                body: JSON.stringify({ url: url })
+            });
+            const data = await response.json();
+
+            if (response.ok) {
+                statusEl.innerText = `Valmis! Loetud ${data.pages_read} lehte. Teksti maht: ${data.text_length} tähemärki.`;
+                addMessage("ai", "Olen valmis! Küsi mult midagi loetud lehtede kohta.");
+            } else {
+                statusEl.innerText = "Viga: " + data.error;
+            }
+        } catch (e) {
+            statusEl.innerText = "Viga ühenduses serveriga.";
+        }
+        isTraining = false;
+    }
+
+    async function sendMessage() {
+        const input = document.getElementById('questionInput');
+        const text = input.value;
+        if (!text) return;
+
+        addMessage("user", text);
+        input.value = "";
+
+        const loadingId = addMessage("ai", "Mõtlen...", true);
+
+        try {
+            const response = await fetch('/api/chat', {
+                method: 'POST',
+                headers: {'Content-Type': 'application/json'},
+                body: JSON.stringify({ question: text })
+            });
+            const data = await response.json();
+
+            const loadingEl = document.getElementById(loadingId);
+            loadingEl.innerText = data.answer;
+            loadingEl.classList.remove("loading");
+        } catch (e) {
+            document.getElementById(loadingId).innerText = "Viga: Ei saanud vastust.";
+        }
+    }
+
+    function addMessage(sender, text, isLoading=false) {
+        const box = document.getElementById('chatBox');
+        const div = document.createElement('div');
+        div.classList.add('message', sender === 'user' ? 'user-msg' : 'ai-msg');
+        if (isLoading) {
+            div.classList.add('loading');
+            div.id = "msg-" + Date.now();
+        }
+        div.innerText = text;
+        box.appendChild(div);
+        box.scrollTop = box.scrollHeight;
+        return div.id;
+    }
+
+    function handleEnter(e) {
+        if (e.key === 'Enter') sendMessage();
+    }
+</script>
+
 </body>
 </html>
